@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blueutil + Sox simple bluetooth recorder
+# Blueutil + Sox Audio Recorder (AirPods otomatik input)
 # by ChatGPT 😎
 
 echo "🔍 Bluetooth cihazlar taranıyor..."
@@ -10,11 +10,10 @@ i=1
 while IFS= read -r line; do
     [[ -z "$line" ]] && continue
 
-    # MAC adresini ve cihaz adını düzgün şekilde ayıkla
+    # MAC adresi ve cihaz adı ayıklama
     mac=$(echo "$line" | sed -n 's/.*address: \([A-Fa-f0-9:-]*\).*/\1/p')
     name=$(echo "$line" | sed -n 's/.*name: "\(.*\)".*/\1/p')
 
-    # boş satırları atla
     if [[ -n "$mac" && -n "$name" ]]; then
         devices+=("$mac")
         names+=("$name")
@@ -42,11 +41,20 @@ echo "🔗 $name ($mac) cihazına bağlanılıyor..."
 blueutil --connect "$mac"
 sleep 2
 
+# input cihazını otomatik bul (AirPods Hands-Free veya Stereo)
+input_device=$(sox -t coreaudio -n stat 2>&1 | grep -i "AirPods" | head -n1)
+if [ -z "$input_device" ]; then
+    echo "⚠️ AirPods input cihazı bulunamadı, default kullanılıyor."
+    input_device="default"
+else
+    echo "🎧 AirPods input cihazı: $input_device"
+fi
+
 filename="recording_$(date +%Y%m%d_%H%M%S).wav"
 echo "🎙️ Kayıt başlatılıyor... CTRL+C ile durdur."
 echo "💾 Kaydedileceği yer: $(pwd)/$filename"
 
 trap "echo; echo '🛑 Kayıt durduruldu. Bağlantı kesiliyor...'; blueutil --disconnect \"$mac\"; exit 0" SIGINT
 
-sox -t coreaudio default "$filename"
-
+# kayıt başlat
+sox -t coreaudio "$input_device" "$filename"
