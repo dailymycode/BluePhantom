@@ -63,7 +63,14 @@ list_profiles() {
 # --- Commands ---
 cmd_scan() {
     echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
-    blueutil --inquiry | awk '{print $1 " -> " $2}'  # MAC -> Name
+    # Her cihazı alt alta göstermek için while loop
+    blueutil --inquiry | while read line; do
+        mac=$(echo $line | awk '{print $1}')
+        name=$(echo $line | awk '{print substr($0,index($0,$2))}')
+        if [ ! -z "$mac" ] && [ ! -z "$name" ]; then
+            echo "$mac -> $name"
+        fi
+    done
 }
 
 cmd_list() {
@@ -138,3 +145,4 @@ while true; do
         *) echo "Unknown command. Type help." ;;
     esac
 done
+
