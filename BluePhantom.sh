@@ -145,4 +145,4 @@ while true; do
         exit) break ;;
         *) echo "Unknown command. Type help." ;;
     esac
-done düzenle buna göre
+done 
