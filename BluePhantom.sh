@@ -102,28 +102,32 @@ cmd_disconnect() {
 
 # --- Recording Function ---
 cmd_record() {
-    # Args: device name, optional format, optional filename
-    local dev="$1"
-    local fmt="$2"
-    local fname="$3"
+    local dev="$1"   # Cihaz adı tırnak içinde gelecek
+    local fmt="$2"   # Opsiyonel: mp3 veya wav
+    local fname="$3" # Opsiyonel: dosya adı
 
+    # Eğer cihaz adı boşsa uyar
     if [ -z "$dev" ]; then
-        echo "No device specified."
+        echo "No device specified. Use quotes for names with spaces."
         return
     fi
 
+    # Format default wav
     [ -z "$fmt" ] && fmt="wav"
+
+    # Dosya adı default timestamp
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
     echo -e "${GREEN}Recording from $dev -> $fname.$fmt (press Ctrl+C to stop)${RESET}"
 
-    # MP3 seçildiyse lame ile dönüştür, yoksa WAV
+    # SoX kaydı başlat
     if [ "$fmt" = "mp3" ]; then
         sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
     else
         sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
     fi
 }
+
 
 # --- Interactive loop ---
 while true; do
