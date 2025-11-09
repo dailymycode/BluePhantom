@@ -99,20 +99,30 @@ cmd_disconnect() {
     echo -e "${YELLOW}Disconnected from $mac${RESET}"
 }
 
-cmd_record() {
-    local dev="$1"
-    local fmt="$2"
-    local fname="$3"
-    if [ -z "$fname" ]; then
-        fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
-    fi
-    if [ "$fmt" = "mp3" ]; then
-        sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
-    else
-        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
-    fi
-    echo -e "${GREEN}Recording saved to Desktop/$fname.$fmt${RESET}"
-}
+record)
+ 
+    allargs=($args)
+    dev=""
+    fmt="wav"
+    fname=""
+
+    for word in "${allargs[@]}"; do
+        if [[ "$word" == "mp3" ]]; then
+            fmt="mp3"
+        elif [[ -n "$word" && "$word" != "mp3" && -z "$fname" ]]; then
+ 
+            if [ -z "$dev" ]; then
+                dev="$word"
+            else
+                dev="$dev $word"
+            fi
+        else
+            fname="$word"
+        fi
+    done
+    cmd_record "$dev" "$fmt" "$fname"
+;;
+
 
 # --- Interactive loop ---
 while true; do
