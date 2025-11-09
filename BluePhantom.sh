@@ -17,7 +17,7 @@ ___.   .__                       .__                   __
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
      
-              🎧  BluePhantom v2.0  -  by ChatGPT
+              🎧  BluePhantom v2.0  -  by dailymycode
 BANNER
 echo -e "${RESET}"
 
