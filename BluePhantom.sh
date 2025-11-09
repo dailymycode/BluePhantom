@@ -107,27 +107,62 @@ cmd_disconnect() {
     echo -e "${YELLOW}🔴 Disconnected.${RESET}"
 }
 
+# --- Recording Function (replace your old cmd_record with this) ---
 cmd_record() {
-    local last_device
-    last_device=$(cat "$LAST_CONNECTED_DEVICE")
-    if [ -z "$last_device" ]; then
-        echo -e "${RED}❌ No device connected. Connect first.${RESET}"
-        return
+    # Tüm argümanı tek string olarak al
+    local input="$*"
+
+    # 1) Eğer tırnak içi cihaz adı varsa onu al (örn: "AirPods Pro")
+    local dev=$(echo "$input" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+
+    # 2) Eğer tırnaklı isim yoksa ilk kelimeyi cihaz ismi kabul et
+    if [ -z "$dev" ]; then
+        # ilk token cihaz adı
+        dev=$(echo "$input" | awk '{print $1}')
+        # geri kalan parametreleri rest'e al
+        rest=$(echo "$input" | cut -s -d' ' -f2-)
+    else
+        # tırnaklı ismi çıkardıktan sonra gerisini al
+        rest=$(echo "$input" | sed -E 's/"[^"]+"//g' | xargs)
     fi
 
-    local fmt="$1"
-    local fname="$2"
+    # 3) rest'ten format ve filename çek
+    fmt=$(echo "$rest" | awk '{print $1}')
+    fname=$(echo "$rest" | awk '{print $2}')
+
+    # defaultlar
     [ -z "$fmt" ] && fmt="wav"
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
-    echo -e "${GREEN}🎙️ Recording from $last_device ... saving as ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
+    # input kontrolü
+    if [ -z "$dev" ]; then
+        echo "Usage: record <Device Name> [mp3|wav] [filename]"
+        echo "   or:  record \"Device Name With Spaces\" [mp3|wav] [filename]"
+        return 1
+    fi
 
+    echo -e "${GREEN}Recording from \"$dev\" -> ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
+
+    # 4) sox çağrısı (doğrudan name ile)
     if [ "$fmt" = "mp3" ]; then
-        sox -t coreaudio "$last_device" "$HOME/Desktop/$fname.mp3"
+        # mp3: sox -> lame (lame ihtiyacı var)
+        eval "sox -t coreaudio \"${dev}\" \"$HOME/Desktop/${fname}.mp3\""
+        rc=$?
     else
-        sox -t coreaudio "$last_device" "$HOME/Desktop/$fname.wav"
+        eval "sox -t coreaudio \"${dev}\" \"$HOME/Desktop/${fname}.wav\""
+        rc=$?
+    fi
+
+    # 5) sonuç bildirimi
+    if [ $rc -eq 0 ]; then
+        echo -e "${CYAN}✔ Recording finished: ~/Desktop/${fname}.${fmt}${RESET}"
+    else
+        echo -e "${YELLOW}✖ sox failed. Check that the device name exists as a CoreAudio input device and is connected.${RESET}"
+        echo -e "${YELLOW}Try: sox -V1 -t coreaudio \"${dev}\" test.wav to get verbose info.${RESET}"
+        return $rc
     fi
 }
+
 
 # --- MAIN LOOP ---
 while true; do
