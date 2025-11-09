@@ -109,42 +109,38 @@ cmd_disconnect() {
 
 # --- Recording Function (replace your old cmd_record with this) ---
 cmd_record() {
-    # full_input: tüm kullanıcı girişi
-    local full_input="$*"
+    local args=("$@")
+    local num_args=${#args[@]}
 
-    # tırnaklı cihaz adını al
-    local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
-
-    # tırnak yoksa ilk kelimeyi cihaz adı kabul et
-    if [ -z "$dev" ]; then
-        dev=$(echo "$full_input" | awk '{print $1}')
-        rest=$(echo "$full_input" | cut -s -d' ' -f2-)
-    else
-        rest=$(echo "$full_input" | sed -E 's/"[^"]+"//g' | xargs)
-    fi
-
-    # format ve dosya adı
-    fmt=$(echo "$rest" | awk '{print $1}')
-    fname=$(echo "$rest" | awk '{print $2}')
-
-    [ -z "$fmt" ] && fmt="wav"
-    [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
-
-    if [ -z "$dev" ]; then
+    if [ $num_args -lt 1 ]; then
         echo "Usage: record <Device Name> [mp3|wav] [filename]"
         return 1
     fi
 
+    # Format ve dosya adı varsayılan
+    local fmt="wav"
+    local fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
+
+    # Eğer argüman sayısı >=2 ve son kelime mp3/wav ise format olarak al
+    if [[ ${args[$num_args-2]} == "mp3" || ${args[$num_args-2]} == "wav" ]]; then
+        fmt=${args[$num_args-2]}
+        fname=${args[$num_args-1]}
+        dev="${args[@]:0:$num_args-2}"
+    else
+        dev="${args[@]}"
+    fi
+
+    # Eğer argüman sayısı >=1 ve son kelime mp3/wav değilse sadece dosya adı varsa
+    if [[ ${args[$num_args-1]} != "mp3" && ${args[$num_args-1]} != "wav" ]]; then
+        dev="${args[@]:0:$num_args-1}"
+        fname=${args[$num_args-1]}
+    fi
+
     echo -e "${GREEN}Recording from \"$dev\" -> ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
 
-    # sox çağrısı: DEVİCE ADI TIRNAKSIZ doğrudan
-    if [ "$fmt" = "mp3" ]; then
-        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.mp3"
-        rc=$?
-    else
-        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
-        rc=$?
-    fi
+    # sox çağrısı
+    sox -t coreaudio "$dev" "$HOME/Desktop/$fname.$fmt"
+    rc=$?
 
     if [ $rc -eq 0 ]; then
         echo -e "${CYAN}✔ Recording finished: ~/Desktop/$fname.$fmt${RESET}"
@@ -152,6 +148,7 @@ cmd_record() {
         echo -e "${YELLOW}✖ sox failed. Check that the device name exists as a CoreAudio input device and is connected.${RESET}"
     fi
 }
+
 
 
 
