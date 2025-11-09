@@ -62,16 +62,42 @@ list_profiles() {
 
 # --- Commands ---
 cmd_scan() {
-    echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
-    # Her cihazı alt alta göstermek için while loop
-    blueutil --inquiry | while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-        mac=$(echo "$line" | awk '{print $1}')
-        name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
-        if [ ! -z "$mac" ] && [ ! -z "$name" ]; then
-            echo "$mac -> $name"
-        fi
+    echo -e "${CYAN}--- Paired devices (blueutil --paired) ---${RESET}"
+    blueutil --paired
+    echo
+
+    echo -e "${CYAN}--- Scanning for Nearby Devices (multiple tries) ---${RESET}"
+    TMP=$(mktemp)
+    for i in 1 2 3; do
+        blueutil --inquiry 2>/dev/null | while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            mac=$(echo "$line" | awk '{print $1}')
+            name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
+            mac_u=$(echo "$mac" | tr '[:lower:]' '[:upper:]')
+            echo "$mac_u -> $name" >> "$TMP"
+        done
+        sleep 2
     done
+
+    if [ -s "$TMP" ]; then
+        sort -u "$TMP" | sed '/^$/d'
+    else
+        echo "(no devices found by inquiry)"
+    fi
+    rm -f "$TMP"
+
+    echo
+    echo -e "${CYAN}--- system_profiler Bluetooth devices (may include more info) ---${RESET}"
+    system_profiler SPBluetoothDataType 2>/dev/null | awk '
+      BEGIN{RS=""; FS="\n"}
+      {
+        name=""; addr="";
+        for(i=1;i<=NF;i++){
+          if($i ~ /^ *Name: /){ sub(/^ *Name: /,"",$i); name=$i }
+          if($i ~ /^ *Address: /){ sub(/^ *Address: /,"",$i); addr=$i }
+        }
+        if(name!="" && addr!="") print addr " -> " name
+      }' | sort -u
 }
 
 cmd_list() {
@@ -146,4 +172,3 @@ while true; do
         *) echo "Unknown command. Type help." ;;
     esac
 done
-
