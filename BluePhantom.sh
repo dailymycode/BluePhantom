@@ -20,11 +20,10 @@ ___.   .__                       .__                   __
  | \_\ \  |_|  |  /\  ___/|  |_> >   Y  \/ __ \|   |  \  | (  <_> )  Y Y  \
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
-
+     
                 BluePhantom v0.9 - @dailymycode
 BANNER
 echo
-
 
 # --- Dependency check ---
 for dep in blueutil sox lame; do
@@ -62,16 +61,15 @@ list_profiles() {
 }
 
 # --- Commands ---
-
 cmd_scan() {
     echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
     blueutil --inquiry | awk '{print $1 " -> " $2}'  # MAC -> Name
 }
 
-
-cmd_list() { blueutil --paired; }
-
-
+cmd_list() {
+    echo -e "${CYAN}--- Paired Devices ---${RESET}"
+    blueutil --paired
+}
 
 cmd_connect() {
     local mac=$(resolve_mac "$1")
@@ -113,6 +111,7 @@ while true; do
     read -p "bluephantom> " cmd args
     case "$cmd" in
         list) cmd_list ;;
+        scan) cmd_scan ;;
         connect) cmd_connect $args ;;
         disconnect) cmd_disconnect $args ;;
         save) save_profile $(echo $args | awk '{print $1,$2}') ;;
@@ -125,18 +124,17 @@ while true; do
             ;;
         help)
             echo "Commands:"
-            echo "  scan                       - Scanning for Nearby Devices"
-            echo "  list                       - show paired devices"
-            echo "  connect <MAC|profile>      - connect to device"
-            echo "  disconnect <MAC|profile>   - disconnect device"
-            echo "  save <name> <MAC>          - save device profile"
-            echo "  profiles                   - list saved profiles"
-            echo "  record <device> [mp3] [filename] - record audio from device"
-            echo "  help                       - show this message"
-            echo "  exit                       - quit"
+            echo "  scan                       - Scan for nearby devices"
+            echo "  list                       - Show paired devices"
+            echo "  connect <MAC|profile>      - Connect to device"
+            echo "  disconnect <MAC|profile>   - Disconnect device"
+            echo "  save <name> <MAC>          - Save device profile"
+            echo "  profiles                   - List saved profiles"
+            echo "  record <device> [mp3] [filename] - Record audio from device"
+            echo "  help                       - Show this message"
+            echo "  exit                       - Quit"
             ;;
         exit) break ;;
         *) echo "Unknown command. Type help." ;;
     esac
 done
-
