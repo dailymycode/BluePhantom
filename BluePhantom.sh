@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blueutil + Sox Audio Recorder (otomatik kayıt)
+# Bluetooth cihaz seç, bağlan, otomatik kayda başla
 # by ChatGPT 😎
 
 echo "🔍 Bluetooth cihazlar taranıyor..."
@@ -30,7 +30,7 @@ mac=${devices[$index]}
 name=${names[$index]}
 
 if [ -z "$mac" ]; then
-    echo "Geçersiz seçim."
+    echo "❌ Geçersiz seçim."
     exit 1
 fi
 
@@ -38,28 +38,19 @@ echo "🔗 $name ($mac) cihazına bağlanılıyor..."
 blueutil --connect "$mac"
 sleep 2
 
-# --- Bağlanan cihaza ait CoreAudio input cihazını tahmin et ---
-# Tüm input cihazlarını listeler ve MAC veya isimle eşleştirir
-input_device=$(sox -t coreaudio -n stat 2>&1 | grep -i "$name" | head -n1)
+# --- Cihaz ismini direkt input olarak kullan ---
+input_device="$name"
 
-# Eğer cihaz adıyla eşleşmezse default input kullan
-if [ -z "$input_device" ]; then
-    echo "⚠️ CoreAudio input cihazı bulunamadı, default kullanılıyor."
-    input_device="default"
-else
-    echo "🎧 Bağlanan cihazın input cihazı: $input_device"
-fi
+echo "🎧 Kayıt input cihazı: $input_device"
 
-# --- Kayıt dosyası ---
 filename="recording_$(date +%Y%m%d_%H%M%S).wav"
-echo "🎙️ Kayıt başlatılıyor... CTRL+C ile durdur."
-echo "💾 Kaydedileceği yer: $(pwd)/$filename"
+output_path="$HOME/Desktop/$filename"
 
-trap "echo; echo '🛑 Kayıt durduruldu. Bağlantı kesiliyor...'; blueutil --disconnect \"$mac\"; exit 0" SIGINT
+echo "🎙️ Kayıt başlatılıyor..."
+echo "💾 Kaydedileceği yer: $output_path"
+echo "🛑 Durdurmak için CTRL+C"
+
+trap "echo; echo '🛑 Kayıt durduruldu, bağlantı kesiliyor...'; blueutil --disconnect \"$mac\"; exit 0" SIGINT
 
 # --- Kayıt başlat ---
-sox -t coreaudio "$input_device" "$filename"
-
-
-# kayıt başlat
-sox -t coreaudio "$input_device" "$filename"
+sox -t coreaudio "$input_device" "$output_path"
