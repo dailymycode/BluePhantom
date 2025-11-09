@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# BluePhantom v1.0 - Simple Bluetooth Connect & Recorder
+# BluePhantom v2.0 - Auto-select connected Bluetooth & Record
 
-VERSION="1.0"
+VERSION="2.0"
 PROFILES="$HOME/.bluephantom_profiles"
-touch "$PROFILES"
+LAST_CONNECTED_DEVICE="$HOME/.bluephantom_last_device"
+touch "$PROFILES" "$LAST_CONNECTED_DEVICE"
 
 # --- COLORS ---
 GREEN='\033[1;32m'
@@ -22,7 +23,7 @@ ___.   .__                       .__                   __
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
      
-                    BluePhantom v1.0 - @dailymycode
+                    BluePhantom v2.0 - @dailymycode
 BANNER
 echo
 
@@ -63,8 +64,14 @@ list_profiles() {
 
 # --- COMMANDS ---
 cmd_scan() {
-    echo -e "${CYAN}🔍 Scanning for nearby devices...${RESET}"
-    blueutil --inquiry | awk '{print $1 " -> " $2}'
+    echo -e "${CYAN}🔍 Nearby devices:${RESET}"
+    i=1
+    blueutil --inquiry | while read -r line; do
+        mac=$(echo "$line" | awk '{print $1}')
+        name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
+        echo "$i. $name -> $mac"
+        ((i++))
+    done
 }
 
 cmd_list() {
@@ -83,6 +90,7 @@ cmd_connect() {
     blueutil --connect "$mac"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✅ Connected to $mac${RESET}"
+        echo "$mac" > "$LAST_CONNECTED_DEVICE"
     else
         echo -e "${RED}⚠️ Connection failed.${RESET}"
     fi
@@ -95,30 +103,29 @@ cmd_disconnect() {
         echo -e "${RED}❌ MAC not found.${RESET}"
         return
     fi
-    echo -e "${CYAN}🔌 Disconnecting from $mac ...${RESET}"
     blueutil --disconnect "$mac"
     echo -e "${YELLOW}🔴 Disconnected.${RESET}"
 }
 
 cmd_record() {
-    local device="$1"
-    local fmt="$2"
-    local fname="$3"
-
-    if [ -z "$device" ]; then
-        echo -e "${YELLOW}Usage: record \"Device Name\" [mp3|wav] [filename]${RESET}"
+    local last_device
+    last_device=$(cat "$LAST_CONNECTED_DEVICE")
+    if [ -z "$last_device" ]; then
+        echo -e "${RED}❌ No device connected. Connect first.${RESET}"
         return
     fi
 
+    local fmt="$1"
+    local fname="$2"
     [ -z "$fmt" ] && fmt="wav"
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
-    echo -e "${GREEN}🎙️ Recording from \"$device\" ... saving as ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
+    echo -e "${GREEN}🎙️ Recording from $last_device ... saving as ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
 
     if [ "$fmt" = "mp3" ]; then
-        sox -t coreaudio "$device" "$HOME/Desktop/$fname.mp3"
+        sox -t coreaudio "$last_device" "$HOME/Desktop/$fname.mp3"
     else
-        sox -t coreaudio "$device" "$HOME/Desktop/$fname.wav"
+        sox -t coreaudio "$last_device" "$HOME/Desktop/$fname.wav"
     fi
 }
 
@@ -136,13 +143,9 @@ while true; do
             ;;
         profiles) list_profiles ;;
         record)
-            # record "AirPods Pro" mp3 kayit1
-            full_input="$args"
-            device=$(echo "$full_input" | grep -oE '"[^"]+"' | tr -d '"')
-            rest=$(echo "$full_input" | sed -E 's/"[^"]+"//')
-            fmt=$(echo "$rest" | awk '{print $1}')
-            fname=$(echo "$rest" | awk '{print $2}')
-            cmd_record "$device" "$fmt" "$fname"
+            # record [mp3|wav] [filename]
+            read -ra arr <<< "$args"
+            cmd_record "${arr[0]}" "${arr[1]}"
             ;;
         help)
             echo "Commands:"
@@ -152,7 +155,7 @@ while true; do
             echo "  disconnect <MAC|profile>   - Disconnect from device"
             echo "  save <name> <MAC>          - Save device profile"
             echo "  profiles                   - List saved profiles"
-            echo "  record \"Device Name\" [mp3|wav] [filename] - Record audio"
+            echo "  record [mp3|wav] [filename] - Record audio from last connected device"
             echo "  help                       - Show help"
             echo "  exit                       - Quit"
             ;;
