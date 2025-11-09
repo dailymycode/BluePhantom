@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BluePhantom v1.0 - simple bluetooth recorder with ASCII banner
+# BluePhantom - simple bluetooth recorder with ASCII banner
 
 VERSION="1.0"
 PROFILES="$HOME/.bluephantom_profiles"
@@ -21,19 +21,19 @@ ___.   .__                       .__                   __
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
      
-                BluePhantom v1.0 - @dailymycode
+                BluePhantom v1.0 - @dailymycode (stable)
 BANNER
 echo
 
 # --- Dependency check ---
 for dep in blueutil sox lame; do
     if ! command -v "$dep" >/dev/null 2>&1; then
-        echo -e "${YELLOW}$dep not found. Install with: brew install $dep${RESET}"
+        echo -e "${YELLOW}$dep not found. Install it using: brew install $dep${RESET}"
         exit 1
     fi
 done
 
-# --- Utilities ---
+# --- UTILITIES ---
 resolve_mac() {
     local key="$1"
     if [[ "$key" =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
@@ -60,7 +60,7 @@ list_profiles() {
     fi
 }
 
-# --- Commands ---
+# --- COMMANDS ---
 cmd_scan() {
     echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
     blueutil --inquiry | while IFS= read -r line; do
@@ -100,19 +100,19 @@ cmd_disconnect() {
     echo -e "${YELLOW}Disconnected from $mac${RESET}"
 }
 
-# --- Recording Function ---
+# --- RECORDING ---
 cmd_record() {
     local full_input="$*"
 
-    # Cihaz adını tırnaklar içinden al (baş/son boşlukları da temizle)
+    # 1️⃣ Tırnak içindeki cihaz adını yakala, boşlukları temizle
     local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | tr -d '"' | sed 's/^ *//;s/ *$//')
 
-    # Kalan argümanları al
+    # 2️⃣ Geri kalan argümanları ayıkla
     local rest=$(echo "$full_input" | sed -E 's/"[^"]+"//g' | xargs)
     local fmt=$(echo "$rest" | awk '{print $1}')
     local fname=$(echo "$rest" | awk '{print $2}')
 
-    # Varsayılan değerler
+    # 3️⃣ Varsayılan değerler
     [ -z "$fmt" ] && fmt="wav"
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
@@ -121,25 +121,23 @@ cmd_record() {
         return
     fi
 
-    echo -e "${GREEN}Recording from \"$dev\" ... saving as $fname.$fmt (Ctrl+C to stop)${RESET}"
+    echo -e "${GREEN}🎙 Recording from \"$dev\" ... saving as $fname.$fmt (Ctrl+C to stop)${RESET}"
 
-    # Gerçek kayıt komutu
+    # 4️⃣ Kaydı başlat (eval ile güvenli boşluk desteği)
     if [ "$fmt" = "mp3" ]; then
         eval "sox -t coreaudio \"$dev\" \"$HOME/Desktop/$fname.mp3\""
     else
         eval "sox -t coreaudio \"$dev\" \"$HOME/Desktop/$fname.wav\""
     fi
+
+    echo -e "${CYAN}✅ Recording finished. Saved on Desktop/${fname}.${fmt}${RESET}"
 }
 
-
-# --- Interactive Loop ---
+# --- LOOP ---
 while true; do
-    echo -n "bluephantom> "
-    IFS= read -r input
-
-    cmd=$(echo "$input" | awk '{print $1}')
-    args="${input#"$cmd"}"
-    args=$(echo "$args" | xargs)
+    read -ep "bluephantom> " cmd_line
+    cmd=$(echo "$cmd_line" | awk '{print $1}')
+    args="${cmd_line#$cmd}"
 
     case "$cmd" in
         list) cmd_list ;;
@@ -160,12 +158,12 @@ while true; do
             echo "  disconnect <MAC|profile>   - Disconnect device"
             echo "  save <name> <MAC>          - Save device profile"
             echo "  profiles                   - List saved profiles"
-            echo "  record \"Device\" [mp3|wav] [filename] - Record audio"
+            echo "  record \"Device Name\" [mp3|wav] [filename] - Record audio"
             echo "  help                       - Show this message"
             echo "  exit                       - Quit"
             ;;
-        exit) break ;;
-        *) echo "Unknown command. Type help." ;;
+        exit|quit) break ;;
+        "") ;;
+        *) echo "Unknown command. Type 'help' for list."; ;;
     esac
 done
-
