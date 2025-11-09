@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# BluePhantom v2.1 - Auto-select connected Bluetooth & Record
+# BluePhantom v2.2 - Auto Bluetooth Connect & Record (Simplified)
 
-VERSION="2.1"
+VERSION="2.2"
 PROFILES="$HOME/.bluephantom_profiles"
-LAST_CONNECTED_DEVICE="$HOME/.bluephantom_last_device"
-touch "$PROFILES" "$LAST_CONNECTED_DEVICE"
+touch "$PROFILES"
 
 # --- COLORS ---
 GREEN='\033[1;32m'
@@ -23,151 +22,82 @@ ___.   .__                       .__                   __
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
      
-                BluePhantom v2.1 - @dailymycode
+                  BluePhantom v2.2 - Auto Mode
 BANNER
 echo
 
 # --- Dependency check ---
 for dep in blueutil sox lame; do
     if ! command -v "$dep" >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  $dep not found. Install it with: brew install $dep${RESET}"
+        echo -e "${YELLOW}⚠️  $dep not found. Install with: brew install $dep${RESET}"
         exit 1
     fi
 done
 
-# --- Utilities ---
-resolve_mac() {
-    local key="$1"
-    if [[ "$key" =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
-        echo "$key"
-    else
-        grep -E "^$key:" "$PROFILES" | cut -d':' -f2
+# --- SCAN & CHOOSE DEVICE ---
+cmd_scan_and_select() {
+    echo -e "${CYAN}🔍 Scanning nearby devices...${RESET}"
+    mapfile -t devices < <(blueutil --inquiry | grep -E '([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}')
+
+    if [ ${#devices[@]} -eq 0 ]; then
+        echo -e "${RED}❌ No Bluetooth devices found.${RESET}"
+        return 1
     fi
-}
 
-save_profile() {
-    local name="$1"
-    local mac="$2"
-    grep -vE "^$name:" "$PROFILES" > "$PROFILES.tmp" 2>/dev/null
-    echo "$name:$mac" >> "$PROFILES.tmp"
-    mv "$PROFILES.tmp" "$PROFILES"
-    echo -e "${GREEN}💾 Saved profile '$name' -> $mac${RESET}"
-}
+    echo
+    echo -e "${CYAN}📡 Found devices:${RESET}"
+    for i in "${!devices[@]}"; do
+        mac=$(echo "${devices[$i]}" | awk '{print $1}')
+        name=$(echo "${devices[$i]}" | awk '{print substr($0,index($0,$2))}')
+        echo "$((i+1)). $name -> $mac"
+    done
 
-list_profiles() {
-    if [ ! -s "$PROFILES" ]; then
-        echo "(no profiles saved)"
-    else
-        awk -F: '{print $1 " -> " $2}' "$PROFILES"
+    echo
+    read -p "Enter the number of the device to connect: " choice
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#devices[@]}" ]; then
+        echo -e "${RED}⚠️ Invalid selection.${RESET}"
+        return 1
     fi
-}
 
-# --- Commands ---
-cmd_scan() {
-    echo -e "${CYAN}🔍 Nearby devices:${RESET}"
-    i=1
-    while read -r line; do
-        mac=$(echo "$line" | awk '{print $1}')
-        name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
-        echo "$i) $name -> $mac"
-        ((i++))
-    done < <(blueutil --inquiry)
-}
+    selected="${devices[$((choice-1))]}"
+    mac=$(echo "$selected" | awk '{print $1}')
+    name=$(echo "$selected" | awk '{print substr($0,index($0,$2))}')
+    echo -e "${CYAN}🔌 Connecting to $name ($mac)...${RESET}"
 
-cmd_list() {
-    echo -e "${CYAN}🔗 Paired Devices:${RESET}"
-    blueutil --paired
-}
-
-cmd_connect() {
-    local mac
-    mac=$(resolve_mac "$1")
-    if [ -z "$mac" ]; then
-        echo -e "${RED}❌ MAC not found.${RESET}"
-        return
-    fi
-    echo -e "${CYAN}🔌 Connecting to $mac ...${RESET}"
     blueutil --connect "$mac"
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Connected to $mac${RESET}"
-        echo "$mac" > "$LAST_CONNECTED_DEVICE"
+        echo -e "${GREEN}✅ Connected to $name${RESET}"
+        echo "$name:$mac" > "$HOME/.bluephantom_last_device"
+        start_recording "$name"
     else
-        echo -e "${RED}⚠️ Connection failed.${RESET}"
+        echo -e "${RED}❌ Connection failed.${RESET}"
     fi
 }
 
-cmd_disconnect() {
-    local mac
-    mac=$(resolve_mac "$1")
-    if [ -z "$mac" ]; then
-        echo -e "${RED}❌ MAC not found.${RESET}"
-        return
-    fi
-    blueutil --disconnect "$mac"
-    echo -e "${YELLOW}🔴 Disconnected.${RESET}"
-}
-
-# --- Recording Function ---
-cmd_record() {
-    local dev
-    # Varsayılan cihaz: son bağlanılan cihaz
-    dev=$(<"$LAST_CONNECTED_DEVICE")
-    if [ -z "$dev" ]; then
-        echo -e "${RED}❌ No device connected. Use connect first.${RESET}"
-        return
-    fi
-
+# --- RECORD FUNCTION ---
+start_recording() {
+    local dev="$1"
     local fmt="wav"
     local fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
+    local output="$HOME/Desktop/$fname.$fmt"
 
-    # Eğer parametre verilmişse
-    [ -n "$1" ] && fmt="$1"
-    [ -n "$2" ] && fname="$2"
+    echo
+    echo -e "${GREEN}🎙  Starting recording from \"$dev\"... (Ctrl+C to stop)${RESET}"
+    echo -e "${YELLOW}Saving to: $output${RESET}"
+    echo
 
-    echo -e "${GREEN}Recording from \"$dev\" -> ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
-
-    # Sox ile kayıt
-    sox -t coreaudio "$dev" "$HOME/Desktop/$fname.$fmt"
+    # Record using sox (CoreAudio input)
+    sox -t coreaudio "$dev" "$output"
     rc=$?
 
     if [ $rc -eq 0 ]; then
-        echo -e "${CYAN}✔ Recording finished: ~/Desktop/$fname.$fmt${RESET}"
+        echo -e "${CYAN}✔ Recording finished: $output${RESET}"
     else
-        echo -e "${YELLOW}✖ sox failed. Make sure the device exists and is connected.${RESET}"
+        echo -e "${RED}✖ Recording failed. Ensure device name matches CoreAudio input.${RESET}"
     fi
 }
 
-# --- MAIN LOOP ---
-while true; do
-    read -p "bluephantom> " cmd args
-    case "$cmd" in
-        scan) cmd_scan ;;
-        list) cmd_list ;;
-        connect) cmd_connect "$args" ;;
-        disconnect) cmd_disconnect "$args" ;;
-        save)
-            read -r name mac <<< "$args"
-            save_profile "$name" "$mac"
-            ;;
-        profiles) list_profiles ;;
-        record)
-            read -ra arr <<< "$args"
-            cmd_record "${arr[0]}" "${arr[1]}"
-            ;;
-        help)
-            echo "Commands:"
-            echo "  scan                       - Scan nearby Bluetooth devices"
-            echo "  list                       - Show paired devices"
-            echo "  connect <MAC|profile>      - Connect to a device"
-            echo "  disconnect <MAC|profile>   - Disconnect from device"
-            echo "  save <name> <MAC>          - Save device profile"
-            echo "  profiles                   - List saved profiles"
-            echo "  record [mp3|wav] [filename] - Record audio from last connected device"
-            echo "  help                       - Show help"
-            echo "  exit                       - Quit"
-            ;;
-        exit|quit) echo "Goodbye!"; break ;;
-        *) echo "Unknown command. Type 'help'." ;;
-    esac
-done
-
+# --- MAIN ---
+cmd_scan_and_select
+echo
+echo -e "${GREEN}✅ Done. You can run again anytime.${RESET}"
