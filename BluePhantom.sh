@@ -1,8 +1,28 @@
 #!/usr/bin/env bash
-# Bluetooth cihaz seç, bağlan, otomatik kayda başla
-# by ChatGPT 😎
 
-echo "🔍 Bluetooth cihazlar taranıyor..."
+# --- COLORS ---
+GREEN='\033[1;32m'
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+RED='\033[1;31m'
+RESET='\033[0m'
+
+clear
+echo -e "${CYAN}"
+cat <<'BANNER'
+___.   .__                       .__                   __                  
+\_ |__ |  |  __ __   ____ ______ |  |__ _____    _____/  |_  ____   _____  
+ | __ \|  | |  |  \_/ __ \\____ \|  |  \\__  \  /    \   __\/  _ \ /     \ 
+ | \_\ \  |_|  |  /\  ___/|  |_> >   Y  \/ __ \|   |  \  | (  <_> )  Y Y  \
+ |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
+     \/                 \/|__|        \/     \/     \/                  \/ 
+     
+               🎧  BluePhantom v1.0  -  by dailymycode
+BANNER
+echo -e "${RESET}"
+sleep 1
+
+echo -e "${CYAN}🔍 Scanning for Bluetooth devices...${RESET}"
 devices=()
 names=()
 
@@ -14,43 +34,45 @@ while IFS= read -r line; do
     if [[ -n "$mac" && -n "$name" ]]; then
         devices+=("$mac")
         names+=("$name")
-        echo "$i) $name -> $mac"
+        echo -e "${GREEN}$i)${RESET} ${YELLOW}$name${RESET} -> ${CYAN}$mac${RESET}"
         ((i++))
     fi
 done < <(blueutil --inquiry)
 
 if [ ${#devices[@]} -eq 0 ]; then
-    echo "❌ Hiç cihaz bulunamadı."
+    echo -e "${RED}❌ No Bluetooth devices found.${RESET}"
     exit 1
 fi
 
-read -p "Bağlanmak istediğin cihazın numarasını gir: " choice
+echo
+read -p "👉 Enter the number of the device to connect: " choice
 index=$((choice-1))
 mac=${devices[$index]}
 name=${names[$index]}
 
 if [ -z "$mac" ]; then
-    echo "❌ Geçersiz seçim."
+    echo -e "${RED}❌ Invalid selection.${RESET}"
     exit 1
 fi
 
-echo "🔗 $name ($mac) cihazına bağlanılıyor..."
+echo
+echo -e "${CYAN}🔗 Connecting to $name ($mac)...${RESET}"
 blueutil --connect "$mac"
 sleep 2
 
-# --- Cihaz ismini direkt input olarak kullan ---
+
 input_device="$name"
-
-echo "🎧 Kayıt input cihazı: $input_device"
-
 filename="recording_$(date +%Y%m%d_%H%M%S).wav"
 output_path="$HOME/Desktop/$filename"
 
-echo "🎙️ Kayıt başlatılıyor..."
-echo "💾 Kaydedileceği yer: $output_path"
-echo "🛑 Durdurmak için CTRL+C"
+echo
+echo -e "${GREEN}🎧 Input device: ${CYAN}$input_device${RESET}"
+echo -e "${YELLOW}💾 Saving to: ${CYAN}$output_path${RESET}"
+echo -e "${GREEN}🎙️  Recording started...${RESET}"
+echo -e "${RED}🛑 Press CTRL+C to stop.${RESET}"
+echo
 
-trap "echo; echo '🛑 Kayıt durduruldu, bağlantı kesiliyor...'; blueutil --disconnect \"$mac\"; exit 0" SIGINT
+trap "echo; echo -e '${YELLOW}🛑 Recording stopped. Disconnecting device...${RESET}'; blueutil --disconnect \"$mac\"; exit 0" SIGINT
 
-# --- Kayıt başlat ---
+# --- Start recording ---
 sox -t coreaudio "$input_device" "$output_path"
