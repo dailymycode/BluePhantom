@@ -64,9 +64,10 @@ list_profiles() {
 cmd_scan() {
     echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
     # Her cihazı alt alta göstermek için while loop
-    blueutil --inquiry | while read line; do
-        mac=$(echo $line | awk '{print $1}')
-        name=$(echo $line | awk '{print substr($0,index($0,$2))}')
+    blueutil --inquiry | while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        mac=$(echo "$line" | awk '{print $1}')
+        name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
         if [ ! -z "$mac" ] && [ ! -z "$name" ]; then
             echo "$mac -> $name"
         fi
