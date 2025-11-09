@@ -104,8 +104,8 @@ cmd_disconnect() {
 cmd_record() {
     local full_input="$*"
 
-    # Cihaz adını tırnaklar içinden al
-    local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | tr -d '"')
+    # Cihaz adını tırnaklar içinden al (baş/son boşlukları da temizle)
+    local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | tr -d '"' | sed 's/^ *//;s/ *$//')
 
     # Kalan argümanları al
     local rest=$(echo "$full_input" | sed -E 's/"[^"]+"//g' | xargs)
@@ -130,6 +130,7 @@ cmd_record() {
         eval "sox -t coreaudio \"$dev\" \"$HOME/Desktop/$fname.wav\""
     fi
 }
+
 
 # --- Interactive Loop ---
 while true; do
