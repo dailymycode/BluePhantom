@@ -62,7 +62,16 @@ list_profiles() {
 }
 
 # --- Commands ---
+
+cmd_scan() {
+    echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
+    blueutil --inquiry | awk '{print $1 " -> " $2}'  # MAC -> Name
+}
+
+
 cmd_list() { blueutil --paired; }
+
+
 
 cmd_connect() {
     local mac=$(resolve_mac "$1")
@@ -116,6 +125,7 @@ while true; do
             ;;
         help)
             echo "Commands:"
+            echo "  scan                       - Scanning for Nearby Devices"
             echo "  list                       - show paired devices"
             echo "  connect <MAC|profile>      - connect to device"
             echo "  disconnect <MAC|profile>   - disconnect device"
