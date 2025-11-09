@@ -56,19 +56,18 @@ list_profiles() {
     if [ ! -s "$PROFILES" ]; then
         echo "(no profiles saved)"
     else
-        cat "$PROFILES" | awk -F: '{print $1 " -> " $2}'
+        awk -F: '{print $1 " -> " $2}' "$PROFILES"
     fi
 }
 
 # --- Commands ---
 cmd_scan() {
     echo -e "${CYAN}--- Scanning for Nearby Devices ---${RESET}"
-    # Her cihazı alt alta göstermek için while loop
     blueutil --inquiry | while IFS= read -r line; do
         [[ -z "$line" ]] && continue
         mac=$(echo "$line" | awk '{print $1}')
         name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
-        if [ ! -z "$mac" ] && [ ! -z "$name" ]; then
+        if [ -n "$mac" ] && [ -n "$name" ]; then
             echo "$mac -> $name"
         fi
     done
@@ -80,7 +79,8 @@ cmd_list() {
 }
 
 cmd_connect() {
-    local mac=$(resolve_mac "$1")
+    local mac
+    mac=$(resolve_mac "$1")
     if [ -z "$mac" ]; then
         echo "MAC not found."
         return
@@ -90,7 +90,8 @@ cmd_connect() {
 }
 
 cmd_disconnect() {
-    local mac=$(resolve_mac "$1")
+    local mac
+    mac=$(resolve_mac "$1")
     if [ -z "$mac" ]; then
         echo "MAC not found."
         return
@@ -99,30 +100,30 @@ cmd_disconnect() {
     echo -e "${YELLOW}Disconnected from $mac${RESET}"
 }
 
-record)
- 
-    allargs=($args)
-    dev=""
-    fmt="wav"
-    fname=""
+# --- Recording Function ---
+cmd_record() {
+    local dev="$1"
+    local fmt="$2"
+    local fname="$3"
 
-    for word in "${allargs[@]}"; do
-        if [[ "$word" == "mp3" ]]; then
-            fmt="mp3"
-        elif [[ -n "$word" && "$word" != "mp3" && -z "$fname" ]]; then
- 
-            if [ -z "$dev" ]; then
-                dev="$word"
-            else
-                dev="$dev $word"
-            fi
-        else
-            fname="$word"
-        fi
-    done
-    cmd_record "$dev" "$fmt" "$fname"
-;;
+    if [ -z "$dev" ]; then
+        echo "No device specified."
+        return
+    fi
 
+    if [ -z "$fmt" ]; then
+        fmt="wav"
+    fi
+
+    if [ -z "$fname" ]; then
+        fname="recording_$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    echo -e "${GREEN}Recording from $dev -> $fname.$fmt${RESET}"
+    
+    # Örnek: sox kullanarak Bluetooth cihazından kayıt
+    # sox -t coreaudio "$dev" "$fname.$fmt"
+}
 
 # --- Interactive loop ---
 while true; do
@@ -130,14 +131,18 @@ while true; do
     case "$cmd" in
         list) cmd_list ;;
         scan) cmd_scan ;;
-        connect) cmd_connect $args ;;
-        disconnect) cmd_disconnect $args ;;
-        save) save_profile $(echo $args | awk '{print $1,$2}') ;;
+        connect) cmd_connect "$args" ;;
+        disconnect) cmd_disconnect "$args" ;;
+        save)
+            read -r name mac <<< "$args"
+            save_profile "$name" "$mac"
+            ;;
         profiles) list_profiles ;;
         record)
-            dev=$(echo $args | awk '{print $1}')
-            fmt=$(echo $args | awk '{print $2}')
-            fname=$(echo $args | awk '{print $3}')
+            read -ra allargs <<< "$args"
+            dev="${allargs[0]}"
+            fmt="${allargs[1]}"
+            fname="${allargs[2]}"
             cmd_record "$dev" "$fmt" "$fname"
             ;;
         help)
@@ -155,4 +160,5 @@ while true; do
         exit) break ;;
         *) echo "Unknown command. Type help." ;;
     esac
-done 
+done
+
