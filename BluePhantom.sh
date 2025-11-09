@@ -102,17 +102,18 @@ cmd_disconnect() {
 
 # --- Recording Function ---
 cmd_record() {
-    # Komutun tamamını tek satır olarak alıyoruz
+    # Kullanıcıdan gelen tüm argümanı birleştir
     local full_input="$*"
 
-    # İlk tırnaklı kısmı cihaz adı olarak çıkarıyoruz
-    local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+    # İlk tırnaklı cihaz adını al
+    local dev=$(echo "$full_input" | grep -oE '"[^"]+"' | tr -d '"')
 
-    # Geri kalan kısmı format ve dosya ismi olarak ayırıyoruz
-    local rest=$(echo "$full_input" | sed -E "s/\"[^\"]+\"//")
+    # Geri kalan kısmı al
+    local rest=$(echo "$full_input" | sed -E 's/"[^"]+"//')
     local fmt=$(echo "$rest" | awk '{print $1}')
     local fname=$(echo "$rest" | awk '{print $2}')
 
+    # Varsayılan değerler
     [ -z "$fmt" ] && fmt="wav"
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
@@ -121,14 +122,15 @@ cmd_record() {
         return
     fi
 
-    echo -e "${GREEN}Recording from \"$dev\" -> $fname.$fmt (Ctrl+C to stop)${RESET}"
+    echo -e "${GREEN}Recording from \"$dev\" ... saving as $fname.$fmt (Ctrl+C to stop)${RESET}"
 
     if [ "$fmt" = "mp3" ]; then
-        sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
+        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.mp3"
     else
         sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
     fi
 }
+
 
 
 
