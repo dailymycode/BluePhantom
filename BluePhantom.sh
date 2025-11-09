@@ -27,7 +27,7 @@ echo
 
 # --- Dependency check ---
 for dep in blueutil sox lame; do
-    if ! command -v $dep >/dev/null 2>&1; then
+    if ! command -v "$dep" >/dev/null 2>&1; then
         echo -e "${YELLOW}$dep not found. Install it using: brew install $dep${RESET}"
         exit 1
     fi
@@ -36,9 +36,11 @@ done
 # --- Utilities ---
 resolve_mac() {
     local key="$1"
+    # Eğer MAC adresi formatındaysa direkt döndür
     if [[ "$key" =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
         echo "$key"
     else
+        # Profilden MAC al
         grep -E "^$key:" "$PROFILES" | cut -d':' -f2
     fi
 }
@@ -46,6 +48,7 @@ resolve_mac() {
 save_profile() {
     local name="$1"
     local mac="$2"
+    # Önce aynı isimdeki profili sil
     grep -vE "^$name:" "$PROFILES" > "$PROFILES.tmp" 2>/dev/null
     echo "$name:$mac" >> "$PROFILES.tmp"
     mv "$PROFILES.tmp" "$PROFILES"
@@ -111,16 +114,13 @@ cmd_record() {
         return
     fi
 
-    if [ -z "$fmt" ]; then
-        fmt="wav"
-    fi
-
-    if [ -z "$fname" ]; then
-        fname="recording_$(date +%Y%m%d_%H%M%S)"
-    fi
+    # Format default wav
+    [ -z "$fmt" ] && fmt="wav"
+    # Dosya adı default timestamp
+    [ -z "$fname" ] && fname="recording_$(date +%Y%m%d_%H%M%S)"
 
     echo -e "${GREEN}Recording from $dev -> $fname.$fmt${RESET}"
-    
+
     # Örnek: sox kullanarak Bluetooth cihazından kayıt
     # sox -t coreaudio "$dev" "$fname.$fmt"
 }
