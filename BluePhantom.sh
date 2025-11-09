@@ -102,29 +102,24 @@ cmd_disconnect() {
 
 # --- Recording Function ---
 cmd_record() {
-    local dev="$1"   # Cihaz adı, tırnak içinde girilecek
-    local fmt="$2"   # Opsiyonel: mp3 veya wav
-    local fname="$3" # Opsiyonel: dosya adı
+    local dev="$1"   # Tırnak içinde cihaz adı ("AirPods Pro")
+    local fmt="$2"   # mp3 veya wav
+    local fname="$3" # Dosya adı
 
     if [ -z "$dev" ]; then
         echo "No device specified. Use quotes for names with spaces."
         return
     fi
 
-    # Format default wav
     [ -z "$fmt" ] && fmt="wav"
-
-    # Dosya adı default timestamp
     [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
     echo -e "${GREEN}Recording from $dev -> $fname.$fmt (press Ctrl+C to stop)${RESET}"
 
     if [ "$fmt" = "mp3" ]; then
-        # mp3 format: sox -> lame
-        sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
+        eval sox -t coreaudio "\"$dev\"" -t wav - \| lame -V2 - "\"$HOME/Desktop/$fname.mp3\""
     else
-        # wav format
-        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
+        eval sox -t coreaudio "\"$dev\"" "\"$HOME/Desktop/$fname.wav\""
     fi
 }
 
