@@ -36,11 +36,9 @@ done
 # --- Utilities ---
 resolve_mac() {
     local key="$1"
-    # Eğer MAC adresi formatındaysa direkt döndür
     if [[ "$key" =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
         echo "$key"
     else
-        # Profilden MAC al
         grep -E "^$key:" "$PROFILES" | cut -d':' -f2
     fi
 }
@@ -48,7 +46,6 @@ resolve_mac() {
 save_profile() {
     local name="$1"
     local mac="$2"
-    # Önce aynı isimdeki profili sil
     grep -vE "^$name:" "$PROFILES" > "$PROFILES.tmp" 2>/dev/null
     echo "$name:$mac" >> "$PROFILES.tmp"
     mv "$PROFILES.tmp" "$PROFILES"
@@ -105,6 +102,7 @@ cmd_disconnect() {
 
 # --- Recording Function ---
 cmd_record() {
+    # Args: device name, optional format, optional filename
     local dev="$1"
     local fmt="$2"
     local fname="$3"
@@ -114,15 +112,17 @@ cmd_record() {
         return
     fi
 
-    # Format default wav
     [ -z "$fmt" ] && fmt="wav"
-    # Dosya adı default timestamp
-    [ -z "$fname" ] && fname="recording_$(date +%Y%m%d_%H%M%S)"
+    [ -z "$fname" ] && fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
-    echo -e "${GREEN}Recording from $dev -> $fname.$fmt${RESET}"
+    echo -e "${GREEN}Recording from $dev -> $fname.$fmt (press Ctrl+C to stop)${RESET}"
 
-    # Örnek: sox kullanarak Bluetooth cihazından kayıt
-    # sox -t coreaudio "$dev" "$fname.$fmt"
+    # MP3 seçildiyse lame ile dönüştür, yoksa WAV
+    if [ "$fmt" = "mp3" ]; then
+        sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
+    else
+        sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
+    fi
 }
 
 # --- Interactive loop ---
@@ -139,10 +139,22 @@ while true; do
             ;;
         profiles) list_profiles ;;
         record)
+            # Boşluklu cihaz adlarını destekle
             read -ra allargs <<< "$args"
-            dev="${allargs[0]}"
-            fmt="${allargs[1]}"
-            fname="${allargs[2]}"
+            dev=""
+            fmt=""
+            fname=""
+            for word in "${allargs[@]}"; do
+                if [[ "$word" == "mp3" ]]; then
+                    fmt="mp3"
+                elif [ -z "$dev" ]; then
+                    dev="$word"
+                elif [[ -z "$fname" ]]; then
+                    fname="$word"
+                else
+                    dev="$dev $word"
+                fi
+            done
             cmd_record "$dev" "$fmt" "$fname"
             ;;
         help)
