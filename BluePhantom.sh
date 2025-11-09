@@ -102,11 +102,10 @@ cmd_disconnect() {
 
 # --- Recording Function ---
 cmd_record() {
-    local dev="$1"   # Cihaz adı tırnak içinde gelecek
+    local dev="$1"   # Cihaz adı, tırnak içinde girilecek
     local fmt="$2"   # Opsiyonel: mp3 veya wav
     local fname="$3" # Opsiyonel: dosya adı
 
-    # Eğer cihaz adı boşsa uyar
     if [ -z "$dev" ]; then
         echo "No device specified. Use quotes for names with spaces."
         return
@@ -120,13 +119,15 @@ cmd_record() {
 
     echo -e "${GREEN}Recording from $dev -> $fname.$fmt (press Ctrl+C to stop)${RESET}"
 
-    # SoX kaydı başlat
     if [ "$fmt" = "mp3" ]; then
+        # mp3 format: sox -> lame
         sox -t coreaudio "$dev" -t wav - | lame -V2 - "$HOME/Desktop/$fname.mp3"
     else
+        # wav format
         sox -t coreaudio "$dev" "$HOME/Desktop/$fname.wav"
     fi
 }
+
 
 
 # --- Interactive loop ---
