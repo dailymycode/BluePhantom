@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# BluePhantom v2.0 - Auto-select connected Bluetooth & Record
+# BluePhantom v2.1 - Auto-select connected Bluetooth & Record
 
-VERSION="2.0"
+VERSION="2.1"
 PROFILES="$HOME/.bluephantom_profiles"
 LAST_CONNECTED_DEVICE="$HOME/.bluephantom_last_device"
 touch "$PROFILES" "$LAST_CONNECTED_DEVICE"
@@ -23,7 +23,7 @@ ___.   .__                       .__                   __
  |___  /____/____/  \___  >   __/|___|  (____  /___|  /__|  \____/|__|_|  /
      \/                 \/|__|        \/     \/     \/                  \/ 
      
-                    BluePhantom v2.0 - @dailymycode
+                BluePhantom v2.1 - @dailymycode
 BANNER
 echo
 
@@ -35,7 +35,7 @@ for dep in blueutil sox lame; do
     fi
 done
 
-# --- UTILITIES ---
+# --- Utilities ---
 resolve_mac() {
     local key="$1"
     if [[ "$key" =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
@@ -62,16 +62,16 @@ list_profiles() {
     fi
 }
 
-# --- COMMANDS ---
+# --- Commands ---
 cmd_scan() {
     echo -e "${CYAN}🔍 Nearby devices:${RESET}"
     i=1
-    blueutil --inquiry | while read -r line; do
+    while read -r line; do
         mac=$(echo "$line" | awk '{print $1}')
         name=$(echo "$line" | awk '{print substr($0,index($0,$2))}')
-        echo "$i. $name -> $mac"
+        echo "$i) $name -> $mac"
         ((i++))
-    done
+    done < <(blueutil --inquiry)
 }
 
 cmd_list() {
@@ -107,50 +107,35 @@ cmd_disconnect() {
     echo -e "${YELLOW}🔴 Disconnected.${RESET}"
 }
 
-# --- Recording Function (replace your old cmd_record with this) ---
+# --- Recording Function ---
 cmd_record() {
-    local args=("$@")
-    local num_args=${#args[@]}
-
-    if [ $num_args -lt 1 ]; then
-        echo "Usage: record <Device Name> [mp3|wav] [filename]"
-        return 1
+    local dev
+    # Varsayılan cihaz: son bağlanılan cihaz
+    dev=$(<"$LAST_CONNECTED_DEVICE")
+    if [ -z "$dev" ]; then
+        echo -e "${RED}❌ No device connected. Use connect first.${RESET}"
+        return
     fi
 
-    # Format ve dosya adı varsayılan
     local fmt="wav"
     local fname="bluephantom_$(date +%Y%m%d_%H%M%S)"
 
-    # Eğer argüman sayısı >=2 ve son kelime mp3/wav ise format olarak al
-    if [[ ${args[$num_args-2]} == "mp3" || ${args[$num_args-2]} == "wav" ]]; then
-        fmt=${args[$num_args-2]}
-        fname=${args[$num_args-1]}
-        dev="${args[@]:0:$num_args-2}"
-    else
-        dev="${args[@]}"
-    fi
-
-    # Eğer argüman sayısı >=1 ve son kelime mp3/wav değilse sadece dosya adı varsa
-    if [[ ${args[$num_args-1]} != "mp3" && ${args[$num_args-1]} != "wav" ]]; then
-        dev="${args[@]:0:$num_args-1}"
-        fname=${args[$num_args-1]}
-    fi
+    # Eğer parametre verilmişse
+    [ -n "$1" ] && fmt="$1"
+    [ -n "$2" ] && fname="$2"
 
     echo -e "${GREEN}Recording from \"$dev\" -> ~/Desktop/$fname.$fmt (Ctrl+C to stop)${RESET}"
 
-    # sox çağrısı
+    # Sox ile kayıt
     sox -t coreaudio "$dev" "$HOME/Desktop/$fname.$fmt"
     rc=$?
 
     if [ $rc -eq 0 ]; then
         echo -e "${CYAN}✔ Recording finished: ~/Desktop/$fname.$fmt${RESET}"
     else
-        echo -e "${YELLOW}✖ sox failed. Check that the device name exists as a CoreAudio input device and is connected.${RESET}"
+        echo -e "${YELLOW}✖ sox failed. Make sure the device exists and is connected.${RESET}"
     fi
 }
-
-
-
 
 # --- MAIN LOOP ---
 while true; do
@@ -166,7 +151,6 @@ while true; do
             ;;
         profiles) list_profiles ;;
         record)
-            # record [mp3|wav] [filename]
             read -ra arr <<< "$args"
             cmd_record "${arr[0]}" "${arr[1]}"
             ;;
@@ -186,3 +170,4 @@ while true; do
         *) echo "Unknown command. Type 'help'." ;;
     esac
 done
+
