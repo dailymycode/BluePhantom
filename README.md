@@ -24,7 +24,7 @@ BluePhantom v2.0 is a macOS Bash script that allows you to automatically connect
   - Can be tried using `bluetoothctl`, `hcitool`, or Python `PyBluez`.  
   - The script may not work directly on Linux; minor modifications may be required.
 
-- **Windows** ❌ Not supported  
+- **Windows** ❌ Not suported
   - Running on Windows requires WSL or other adaptations.
 
 ---
